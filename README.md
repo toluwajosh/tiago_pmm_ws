@@ -30,3 +30,6 @@ For the instructions to install TIAGo with ROS from scratch, see the following p
 * [Instructions from a thread](https://answers.ros.org/question/283875/dependency-error-while-installing-tiago/). *Useful in case of dependency issues.*
 
 Please share any other issues encountered.
+
+#### To contribute;
+Please create your own branch and work on it, only send merge requests to the devel branch. All accepted updates will be merged to the master branch.
