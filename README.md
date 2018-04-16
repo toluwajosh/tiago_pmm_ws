@@ -4,6 +4,7 @@
 Assuming you already have a working TIAGo installation:
 *After cloning this repo, do the following*
 * Run
+
 `rosinstall src /opt/ros/indigo tiago_public.rosinstall`
 
 ```python
