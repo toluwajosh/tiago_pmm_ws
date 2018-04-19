@@ -39,12 +39,12 @@ All accepted updates will be merged to the master branch.
 
 #### Tasks Division:
 |Main Task |Subdivision |Summary |Person |
-|:-----|:-----:|:-----:|:-----:|
+|:-----|:-----|:-----|:-----|
 |**Perception** |	|	|	|
 |				|Object Localization	|	|	|
 |				|Object Pose Estimation	|	|	|
 |				|Liquid Level Estimation	|	|	|
-|**Trajectory **|	|	|
+|**Trajectory**|	|	|
 |				|Planning	|	|	|
 |				|Generation	|	|	|
 |				|Gripper Control	|	|	|
