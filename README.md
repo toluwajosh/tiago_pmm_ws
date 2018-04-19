@@ -38,7 +38,7 @@ All accepted updates will be merged to the master branch.
 
 
 #### Tasks Division:
-|Main Task |Subdivision |Summary |Person |
+|Main Task |Subdivision |Remark |Person |
 |:-----|:-----|:-----|:-----|
 |**Perception** |	|	|	|
 |				|Object Localization	|	|	|
