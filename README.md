@@ -35,3 +35,19 @@ Please share any other issues encountered.
 #### To contribute;
 Please create your own branch and work on it, only send merge requests to the devel branch. 
 All accepted updates will be merged to the master branch.
+
+
+#### Tasks Division:
+|Main Task |Subdivision |Summary |Person |
+|:-----|:-----:|:-----:|:-----:|
+|**Perception** |	|	|	|
+|				|Object Localization	|	|	|
+|				|Object Pose Estimation	|	|	|
+|				|Liquid Level Estimation	|	|	|
+|**Trajectory **|	|	|
+|				|Planning	|	|	|
+|				|Generation	|	|	|
+|				|Gripper Control	|	|	|
+|**Simulation and System Integration** |	|	|
+|				|Liquid	|	|	|
+|				|Object Interaction	|	|	|
