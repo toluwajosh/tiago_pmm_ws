@@ -2,3 +2,4 @@
 /devel
 /logs
 /.catkin_tools
+.rosinstall.bak

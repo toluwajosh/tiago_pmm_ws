@@ -41,13 +41,22 @@ All accepted updates will be merged to the master branch.
 |Main Task |Subdivision |Remark |Person |
 |:-----|:-----|:-----|:-----|
 |**Perception** |	|	|	|
-|				|Object Localization	|	|	|
-|				|Object Pose Estimation	|	|	|
-|				|Liquid Level Estimation	|	|	|
+|				|Object Localization	|	|Su, Peng	|
+|				|Object Pose Estimation	|	|Su, Peng	|
+|				|Liquid Level Estimation	|	|Bian	|
 |**Trajectory**|	|	|
-|				|Planning	|	|	|
-|				|Generation	|	|	|
-|				|Gripper Control	|	|	|
+|				|Planning	|	|Joshua	|
+|				|Generation	|	|Joshua	|
+|				|Gripper Control	|	|Kingkan	|
 |**Simulation and System Integration** |	|	|
-|				|Liquid	|	|	|
+|				|Liquid	|	|Joe	|
 |				|Object Interaction	|	|	|
+|				|System Integration	|	|Chiba	|
+
+
+#### Essential Tutorials
+* [Planning in cartesian space](http://wiki.ros.org/Robots/TIAGo/Tutorials/MoveIt/Planning_cartesian_space)
+* [Pick and Place demo](http://wiki.ros.org/Robots/TIAGo/Tutorials/MoveIt/Pick_place)
+* [Play predefined upper body motions](http://wiki.ros.org/Robots/TIAGo/Tutorials/motions/play_motion)
+* [All the tutorials](http://wiki.ros.org/Robots/TIAGo/Tutorials)
+* [Importing external 3D model into gazebo simulation](https://www.youtube.com/watch?v=aP4sDyrRzpU)
