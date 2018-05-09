@@ -1,0 +1,4 @@
+joint_torque_sensor_state_controller:
+  type: joint_torque_sensor_state_controller/JointStateTorqueSensorController
+  publish_rate: 100
+  output_topic: joint_torque_states
