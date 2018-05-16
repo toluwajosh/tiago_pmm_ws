@@ -166,7 +166,7 @@ class PickAruco(object):
 
                         # Place the object back to its position
 			rospy.loginfo("Gonna place near where it was")
-			pick_g.object_pose.pose.position.z += 0.05
+			pick_g.object_pose.pose.position.z += 0.1
 			self.place_as.send_goal_and_wait(pick_g)
 			rospy.loginfo("Done!")
 
