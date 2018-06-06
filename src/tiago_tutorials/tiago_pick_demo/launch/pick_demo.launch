@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
 
-  <arg name="rviz"  default="true"/>
+  <arg name="rviz"  default="false"/>
   <!-- marker detector -->
   <node pkg="aruco_ros" type="single"  name="aruco_single">
       <remap from="/camera_info"       to="/xtion/rgb/camera_info" />

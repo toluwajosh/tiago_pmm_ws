@@ -363,48 +363,96 @@ namespace pal {
     }
 
     template <typename PointT>
-    bool cylinderSegmentation(const typename pcl::PointCloud<PointT>::Ptr& inputCloud,
-                              typename pcl::PointCloud<PointT>::Ptr& cylinderCloud,
+    bool cylinderSegmentation(typename pcl::PointCloud<PointT>::Ptr& inputCloud,
+                              typename pcl::PointCloud<PointT>::Ptr& cylinderCloud_1,
+                              typename pcl::PointCloud<PointT>::Ptr& cylinderCloud_2,
                               int neighbors,
-                              double minRadius,
+                              //int normal_size,
+                              double minRadius,						  
                               double maxRadius,
-                              pcl::ModelCoefficients::Ptr& cylinderCoefficients)
+                              pcl::ModelCoefficients::Ptr& cylinderCoefficients_1,
+                              pcl::ModelCoefficients::Ptr& cylinderCoefficients_2)
     {
+	  //std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> Cloud_in;
+	  //pcl::PointCloud<pcl::PointXYZRGB>::Ptr& input_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	  //Cloud_in.push_back(inputCloud);
+	  //input_cloud=Cloud_in.at(0);
       pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+      pcl::PointCloud<pcl::Normal>::Ptr normals_1(new pcl::PointCloud<pcl::Normal>);
       estimateNormals<PointT>(inputCloud,
                               neighbors,
                               normals);
 
       if ( normals->size() < 20 )
         return false;
-
+	  //normal_size=normals->size();  /*test for the normal size*/
       pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
-      pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+      //std::vector<pcl::ModelCoefficients::Ptr> cylinderCoefficients;
+      //std::vector<pcl::PointIndices::Ptr> inliers;
+      
+      pcl::ExtractIndices<pcl::Normal> extract_normals;
 
-      seg.setOptimizeCoefficients(true);
-      seg.setModelType(pcl::SACMODEL_CYLINDER);
-      seg.setMethodType(pcl::SAC_RANSAC);
-      seg.setNormalDistanceWeight (0.1);
-      seg.setMaxIterations(10000);
-      seg.setDistanceThreshold(0.05);
-      seg.setRadiusLimits(minRadius, maxRadius);
-      seg.setInputCloud(inputCloud);
-      seg.setInputNormals(normals);
-      seg.segment(*inliers, *cylinderCoefficients);
-
-      if ( !inliers->indices.empty() )
-      {
-        //Extract inliers
-        pcl::ExtractIndices<PointT> extract;
-        extract.setInputCloud(inputCloud);
-        extract.setIndices(inliers);
-        extract.setNegative(false);
-        extract.filter(*cylinderCloud);
-        return true;
-      }
+      
+      //seg.setInputCloud(inputCloud);
+      //seg.setInputNormals(normals);
+      //seg.segment(*inliers, *cylinderCoefficients);
+      
+      int i=0,n_points;
+      n_points=(int)inputCloud->points.size();
+      pcl::ExtractIndices<PointT> extract;
+	  std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> Cloud;
+	
+	  while(i<2)
+		 {
+			//std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> Cloud;
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr Cloud_1(new pcl::PointCloud<pcl::PointXYZRGB>);
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr Cloud_2(new pcl::PointCloud<pcl::PointXYZRGB>);
+			pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+			pcl::ModelCoefficients::Ptr cylinderCoefficients(new pcl::ModelCoefficients);
+			pcl::PointCloud<pcl::Normal>::Ptr normals_1(new pcl::PointCloud<pcl::Normal>);
+			seg.setOptimizeCoefficients(true);
+			seg.setModelType(pcl::SACMODEL_CYLINDER);
+			seg.setMethodType(pcl::SAC_RANSAC);
+			seg.setNormalDistanceWeight (0.1);
+			seg.setMaxIterations(10000);
+			seg.setDistanceThreshold(0.05);
+			seg.setRadiusLimits(minRadius, maxRadius);
+			seg.setInputNormals(normals);
+			seg.setInputCloud(inputCloud);
+			seg.segment(*inliers, *cylinderCoefficients);
+			if ( !inliers->indices.empty() )
+			{
+				extract.setInputCloud(inputCloud);
+				extract.setIndices(inliers);
+				extract.setNegative(false);
+				extract.filter(*Cloud_1);
+				Cloud.push_back(Cloud_1);	
+				if((int)Cloud_1->points.size()<280)
+				{
+					cylinderCloud_1=Cloud.at(i);
+					cylinderCoefficients_1=cylinderCoefficients;
+				}
+				else
+				{
+					cylinderCloud_2=Cloud.at(i);
+					cylinderCoefficients_2=cylinderCoefficients;
+				}
+				extract.setNegative(true);
+				extract.filter(*Cloud_2);
+				inputCloud.swap(Cloud_2);	
+				extract_normals.setNegative (true);
+				extract_normals.setInputCloud (normals);
+				extract_normals.setIndices (inliers);
+				extract_normals.filter (*normals_1);
+				normals.swap(normals_1);
+			}	  
+			i++;	 
+		}
+	  
+	  if ((!cylinderCloud_1->empty())&&(!cylinderCloud_2->empty()))
+		return true;
       else
         return false;
     }
-
 
 } //pal

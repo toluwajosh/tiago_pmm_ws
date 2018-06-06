@@ -42,9 +42,10 @@
 // PCL headers
 #include <pcl/filters/extract_indices.h>
 #include <pcl_conversions/pcl_conversions.h>
-
+#include <pcl/io/pcd_io.h>
 // ROS headers
 #include <ros/ros.h>
+
 #include <ros/callback_queue.h>
 #include <tf/transform_datatypes.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -75,14 +76,17 @@ protected:
   void publish(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cylinderCloud,
                const pcl::ModelCoefficients::Ptr& cylinderCoefficients,
                const Eigen::Matrix4d& transform,
+               const Eigen::Matrix4d& transform_1,
                double cylinderHeight,
                const std_msgs::Header& header);
 
   void publishPose(const geometry_msgs::Pose& pose,
                    const std_msgs::Header& header);
+  void publishPose_1(const geometry_msgs::Pose& pose,
+                   const std_msgs::Header& header);
 
-  void print(const pcl::ModelCoefficients::Ptr& cylinderCoefficients,
-             int numberOfPoints);
+  void print(pcl::ModelCoefficients::Ptr cylinderCoefficients_1, pcl::ModelCoefficients::Ptr cylinderCoefficients_2,
+                             int numberOfPoints_1,int numberOfPoints_2,int numberOfPoints_1_f,int numberOfPoints_2_f);
 
   /**
    * @brief getPointAndVector Given a point cloud in which a cylinder has been fit, it computes
@@ -126,6 +130,7 @@ protected:
   ros::Subscriber _cloudSub;
   ros::Publisher  _cylinderCloudPub;
   ros::Publisher  _cylinderPosePub;
+  ros::Publisher  _cylinderPosePub_1;
   ros::Publisher  _cylinderMarkerPub;
   ros::Publisher  _objectPub;
 };
@@ -144,6 +149,7 @@ CylinderDetector::CylinderDetector(ros::NodeHandle& nh,
 
   _cylinderCloudPub  = _pnh.advertise< pcl::PointCloud<pcl::PointXYZRGB> >("cylinder_cloud", 1);
   _cylinderPosePub   = _pnh.advertise< geometry_msgs::PoseStamped >("cylinder_pose", 1);
+  _cylinderPosePub_1   = _pnh.advertise< geometry_msgs::PoseStamped >("cylinder_pose_1", 1);
   _cylinderMarkerPub = _pnh.advertise<visualization_msgs::Marker>( "marker", 1 );
   _objectPub         = _pnh.advertise<object_recognition_msgs::RecognizedObjectArray>("recognized_objects",1);
 }
@@ -153,21 +159,31 @@ CylinderDetector::~CylinderDetector()
 
 }
 
-void CylinderDetector::print(const pcl::ModelCoefficients::Ptr& cylinderCoefficients,
-                             int numberOfPoints)
+void CylinderDetector::print(pcl::ModelCoefficients::Ptr cylinderCoefficients_1, pcl::ModelCoefficients::Ptr cylinderCoefficients_2,
+                             int numberOfPoints_1,int numberOfPoints_2,int numberOfPoints_1_f,int numberOfPoints_2_f)
 {
   std::stringstream ss;
-  ss << std::endl << "Cylinder found with " << numberOfPoints << " points:  " << std::endl;
-  ss << "\tRadius:      " << cylinderCoefficients->values[6] << " m" << std::endl;
+  ss << std::endl << "Cylinder_1 found with " << numberOfPoints_1 << " points before filtered and  " << numberOfPoints_1_f <<" points after filtered:" << std::endl;
+  ss << "\tRadius:      " << cylinderCoefficients_1->values[6] << " m" << std::endl;
   ss << "\tPoint:       (" <<
-        cylinderCoefficients->values[0] << ", " <<
-        cylinderCoefficients->values[1] << ", " <<
-        cylinderCoefficients->values[2] << ")" << std::endl;
+        cylinderCoefficients_1->values[0] << ", " <<
+        cylinderCoefficients_1->values[1] << ", " <<
+        cylinderCoefficients_1->values[2] << ")" << std::endl;
   ss << "\tAxis:        (" <<
-        cylinderCoefficients->values[3] << ", " <<
-        cylinderCoefficients->values[4] << ", " <<
-        cylinderCoefficients->values[5] << ")" << std::endl;
-
+        cylinderCoefficients_1->values[3] << ", " <<
+        cylinderCoefficients_1->values[4] << ", " <<
+        cylinderCoefficients_1->values[5] << ")" << std::endl;
+  ss << std::endl << "Cylinder_2 found with " << numberOfPoints_2 << " points before filtered and  " << numberOfPoints_2_f <<" points after filtered:"<<std::endl;
+  ss << "\tRadius:      " << cylinderCoefficients_2->values[6] << " m" << std::endl;
+  ss << "\tPoint:       (" <<
+        cylinderCoefficients_2->values[0] << ", " <<
+        cylinderCoefficients_2->values[1] << ", " <<
+        cylinderCoefficients_2->values[2] << ")" << std::endl;
+  ss << "\tAxis:        (" <<
+        cylinderCoefficients_2->values[3] << ", " <<
+        cylinderCoefficients_2->values[4] << ", " <<
+        cylinderCoefficients_2->values[5] << ")" << std::endl;
+		
   ROS_INFO_STREAM(ss.str());
 }
 
@@ -241,51 +257,94 @@ void CylinderDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& clo
     return;
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  //pcl::PCDWriter writer_1,writer_2;
   pcl::fromROSMsg(*cloud, *pclCloud);
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCylinderCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::ModelCoefficients::Ptr cylinderCoefficients(new pcl::ModelCoefficients);
+  //pcl::io::savePCDFileASCII("~/test_1.pcd",*pclCloud);
+  //writer_1.write<pcl::PointXYZRGB>("~/test_1.pcd",*pclCloud,false);
+  int n_cloud_1,n_cloud_1_f,n_cloud_2,n_cloud_2_f;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCylinderCloud_1(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCylinderCloud_2(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::ModelCoefficients::Ptr cylinderCoefficients_1(new pcl::ModelCoefficients);
+  pcl::ModelCoefficients::Ptr cylinderCoefficients_2(new pcl::ModelCoefficients);
   bool found = pal::cylinderSegmentation<pcl::PointXYZRGB>(pclCloud,
-                                                           pclCylinderCloud,
+                                                           pclCylinderCloud_1,
+                                                           pclCylinderCloud_2,
                                                            10,
                                                            0.015, 0.08,
-                                                           cylinderCoefficients);
-
+                                                           cylinderCoefficients_1,
+                                                           cylinderCoefficients_2);
+  //pcl::io::savePCDFileASCII("~/test_2.pcd",*pclCylinderCloud);
   //filter outliers in the cylinder cloud
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclFilteredCylinderCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  if ( pclCylinderCloud->empty() )
-    pclFilteredCylinderCloud = pclCylinderCloud;
+  n_cloud_1=(int)pclCylinderCloud_1->points.size();
+  n_cloud_2=(int)pclCylinderCloud_2->points.size();
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclFilteredCylinderCloud_1(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclFilteredCylinderCloud_2(new pcl::PointCloud<pcl::PointXYZRGB>);
+  if ( (pclCylinderCloud_1->empty() )&&(pclCylinderCloud_2->empty() ))
+	{
+    pclFilteredCylinderCloud_1 = pclCylinderCloud_1;
+    pclFilteredCylinderCloud_2 = pclCylinderCloud_2;
+    }
+  else if ( (!pclCylinderCloud_1->empty() )&&(pclCylinderCloud_2->empty() ))
+	{
+    pal::statisticalOutlierRemoval<pcl::PointXYZRGB>(pclCylinderCloud_1, 25, 1.0,pclFilteredCylinderCloud_1);
+    pclFilteredCylinderCloud_2 = pclCylinderCloud_2;
+	}
+  else if ( (pclCylinderCloud_1->empty() )&&(!pclCylinderCloud_2->empty() ))
+	{
+	pal::statisticalOutlierRemoval<pcl::PointXYZRGB>(pclCylinderCloud_2, 25, 1.0,pclFilteredCylinderCloud_2);
+    pclFilteredCylinderCloud_1 = pclCylinderCloud_1;
+	}
   else
-    pal::statisticalOutlierRemoval<pcl::PointXYZRGB>(pclCylinderCloud, 25, 1.0,pclFilteredCylinderCloud);
-
+	{
+	pal::statisticalOutlierRemoval<pcl::PointXYZRGB>(pclCylinderCloud_1, 25, 1.0,pclFilteredCylinderCloud_1);
+	pal::statisticalOutlierRemoval<pcl::PointXYZRGB>(pclCylinderCloud_2, 25, 1.0,pclFilteredCylinderCloud_2);
+	}
+	
+	
   if ( found )
   {
-    print(cylinderCoefficients, pclCylinderCloud->points.size());
+    print(cylinderCoefficients_1,cylinderCoefficients_2, (int)pclCylinderCloud_1->points.size(),(int)pclCylinderCloud_2->points.size(),(int)pclFilteredCylinderCloud_1->points.size(),(int)pclFilteredCylinderCloud_2->points.size());
+    //print(m);
 
-    Eigen::Vector3d projectedCentroid, lineVector;
-    getPointAndVector(pclFilteredCylinderCloud,
-                      cylinderCoefficients,
-                      projectedCentroid,
-                      lineVector);
+    Eigen::Vector3d projectedCentroid_1,projectedCentroid_2, lineVector_1,lineVector_2;
+    getPointAndVector(pclFilteredCylinderCloud_2,
+                      cylinderCoefficients_2,
+                      projectedCentroid_2,
+                      lineVector_2);
+    getPointAndVector(pclFilteredCylinderCloud_1,
+                      cylinderCoefficients_1,
+                      projectedCentroid_1,
+                      lineVector_1);
+;
 
-    double cylinderHeight = computeHeight(pclFilteredCylinderCloud,
-                                          projectedCentroid,
-                                          lineVector);
+    double cylinderHeight_2 = computeHeight(pclFilteredCylinderCloud_2,
+                                          projectedCentroid_2,
+                                          lineVector_2);
+    double cylinderHeight_1 = computeHeight(pclFilteredCylinderCloud_1,
+                                          projectedCentroid_1,
+                                          lineVector_1);
+
 
 //    ROS_INFO_STREAM("The cylinder centroid is (" << centroid.head<3>().transpose() <<
 //                    ") and projected to its axis is (" << projectedCentroid.transpose() << ")");
 
-    Eigen::Matrix4d cylinderTransform;
+    Eigen::Matrix4d cylinderTransform_1,cylinderTransform_2;
     //create a frame given the cylinder parameters (point and vector)
-    pal::pointAndLineTransform(lineVector,
-                               projectedCentroid,
-                               cylinderTransform);
+    pal::pointAndLineTransform(lineVector_2,
+                               projectedCentroid_2,
+                               cylinderTransform_2);
+    pal::pointAndLineTransform(lineVector_1,
+                               projectedCentroid_1,
+                               cylinderTransform_1);
 
-    publish(pclFilteredCylinderCloud,
-            cylinderCoefficients,
-            cylinderTransform,
-            cylinderHeight,
+
+    publish(pclFilteredCylinderCloud_1,
+            cylinderCoefficients_1,
+            cylinderTransform_1,
+            cylinderTransform_2,
+            cylinderHeight_1,
             cloud->header);
+
   }
 }
 
@@ -301,11 +360,24 @@ void CylinderDetector::publishPose(const geometry_msgs::Pose& pose,
   }
 }
 
+void CylinderDetector::publishPose_1(const geometry_msgs::Pose& pose,
+                                   const std_msgs::Header& header)
+{
+  if ( _cylinderPosePub_1.getNumSubscribers() > 0 )
+  {
+    geometry_msgs::PoseStamped poseMsg;
+    poseMsg.pose   = pose;
+    poseMsg.header = header;
+    _cylinderPosePub_1.publish(poseMsg);
+  }
+}
+
 
 
 void CylinderDetector::publish(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cylinderCloud,
                                const pcl::ModelCoefficients::Ptr& cylinderCoefficients,
                                const Eigen::Matrix4d& transform,
+                               const Eigen::Matrix4d& transform_1,
                                double cylinderHeight,
                                const std_msgs::Header& header)
 {
@@ -315,11 +387,13 @@ void CylinderDetector::publish(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cylinderC
     _cylinderCloudPub.publish(cylinderCloud);
   }
 
-  geometry_msgs::Pose pose;
+  geometry_msgs::Pose pose,pose_1;
   pal::convert(transform, pose);
+  pal::convert(transform_1, pose_1);
 
   if ( _cylinderPosePub.getNumSubscribers() > 0 )
     publishPose(pose, header);
+  publishPose_1(pose_1, header);
 
   if ( _cylinderMarkerPub.getNumSubscribers() > 0 )
   {    
