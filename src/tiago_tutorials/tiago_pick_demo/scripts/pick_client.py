@@ -110,6 +110,7 @@ class PickAruco(object):
         rospy.sleep(1.0)
         rospy.loginfo("Done initializing PickAruco.")
 
+
     def strip_leading_slash(self, s):
         return s[1:] if s.startswith("/") else s
         
@@ -117,14 +118,21 @@ class PickAruco(object):
         self.prepare_robot()
 
         rospy.sleep(2.0)
-        rospy.loginfo("spherical_grasp_gui: Waiting for an aruco detection")
+        rospy.loginfo("spherical_grasp_gui: Waiting for an cylinder detection")
 
+        # for aruco ####
         # get pose of object here:
         # aruco_pose = rospy.wait_for_message('/aruco_single/pose', PoseStamped)
         # aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
 
-        aruco_pose = PoseStamped()
-        aruco_pose.header.frame_id = 'base_footprint'
+        # for cylinder detection ####
+        aruco_pose = rospy.wait_for_message('/cylinder_detector/cylinder_pose_1', PoseStamped)
+        aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
+
+        # for hardcoded
+        # aruco_pose = PoseStamped()
+        # aruco_pose.header.frame_id = 'base_footprint'
+
         rospy.loginfo("Got: " + str(aruco_pose))
 
         # spherical grasp used
@@ -153,19 +161,19 @@ class PickAruco(object):
         waypoints=[]
         waypoints.append(start_pose)
 
-        # # 0.867343 0.020112  0.722288 -0.004629 0.002833 8.8e-05
-        aruco_pose.pose.position.x = 0.867343
-        # aruco_pose.pose.position.x = 0.536
-        # aruco_pose.pose.position.y = -0.049
-        aruco_pose.pose.position.y = 0.020112
-        # aruco_pose.pose.position.z = 0.930
-        aruco_pose.pose.position.z = 0.722288
-        aruco_pose.pose.orientation.x = 0.5
-        aruco_pose.pose.orientation.y = 0.5
-        aruco_pose.pose.orientation.z = 0.5
+        # # # 0.867343 0.020112  0.722288 -0.004629 0.002833 8.8e-05
+        # aruco_pose.pose.position.x = 0.867343
+        # # aruco_pose.pose.position.x = 0.536
+        # # aruco_pose.pose.position.y = -0.049
+        # aruco_pose.pose.position.y = 0.020112
+        # # aruco_pose.pose.position.z = 0.930
+        # aruco_pose.pose.position.z = 0.722288
+        # aruco_pose.pose.orientation.x = -0.5
+        # aruco_pose.pose.orientation.y = -0.5
+        # aruco_pose.pose.orientation.z = -0.5
 
 
-        aruco_pose.pose.orientation.w = 1.0
+        aruco_pose.pose.orientation.w = 0
 
         aruco_pose.pose.orientation.y -= 0.1*(1.0/2.0)
 
