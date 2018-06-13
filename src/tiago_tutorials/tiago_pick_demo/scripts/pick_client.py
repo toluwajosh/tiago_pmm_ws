@@ -117,7 +117,8 @@ class PickAruco(object):
     def pick_aruco(self, string_operation):
         self.prepare_robot()
 
-        rospy.sleep(2.0)
+        rospy.sleep(3.0)
+
         rospy.loginfo("spherical_grasp_gui: Waiting for an aruco detection")
 
         # self.turn_wrist() # experimental function
@@ -137,7 +138,7 @@ class PickAruco(object):
         
         # milk bottle pose - 0.54076 -0.048781 0.706404 (722288)
         aruco_pose.pose.position.x = 0.54076
-        aruco_pose.pose.position.y = -0.048781
+        aruco_pose.pose.position.y = -0.048781 #+ 0.05
         aruco_pose.pose.position.z = 0.706404 + 0.08
         aruco_pose.pose.orientation.x = 0.5
         aruco_pose.pose.orientation.y = 0.5
@@ -199,13 +200,13 @@ class PickAruco(object):
             # Move torso to its maximum height
             self.lift_torso()
 
-            rospy.sleep(3)
+            rospy.sleep(3.0)
 
             # self.turn_wrist()
 
             # cup pose: 0.704044 0.048027 0.722279
             aruco_pose.pose.position.x = 0.704044 - 0.2
-            aruco_pose.pose.position.y = 0.048027 + 0.1
+            aruco_pose.pose.position.y = 0.048027 
             aruco_pose.pose.position.z += 0.2
 
 
@@ -370,7 +371,7 @@ class PickAruco(object):
     def prepare_robot(self):
         rospy.loginfo("Unfold arm safely")
         pmg = PlayMotionGoal()
-        pmg.motion_name = 'pregrasp'
+        pmg.motion_name = 'arm_raise'
         pmg.skip_planning = False
         self.play_m_as.send_goal_and_wait(pmg)
         rospy.loginfo("Done.")

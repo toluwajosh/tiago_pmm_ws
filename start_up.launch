@@ -33,6 +33,6 @@
     <arg name="use_moveit_camera" value="$(arg use_moveit_camera)"/>
   </include>
 
-  <node name="tuck_arm" pkg="tiago_gazebo" type="tuck_arm.py" output="screen"/>
+  <node name="prepare_arm" pkg="tiago_gazebo" type="prepare_arm.py" output="screen"/>
 </launch>
 
