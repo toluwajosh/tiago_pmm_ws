@@ -60,3 +60,9 @@ All accepted updates will be merged to the master branch.
 * [Play predefined upper body motions](http://wiki.ros.org/Robots/TIAGo/Tutorials/motions/play_motion)
 * [All the tutorials](http://wiki.ros.org/Robots/TIAGo/Tutorials)
 * [Importing external 3D model into gazebo simulation](https://www.youtube.com/watch?v=aP4sDyrRzpU)
+
+
+command to find the play_motions
+```
+rosparam list | grep  "play_motion/motions" | grep "meta/name" | cut -d '/' -f 4
+```

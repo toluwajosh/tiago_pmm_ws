@@ -33,7 +33,6 @@ from math_util import *
 
 # added
 from moveit_commander import MoveGroupCommander#, PlanningSceneInterface
-from sensor_msgs.msg import JointState
 
 import tf2_ros
 from tf2_geometry_msgs import do_transform_pose
@@ -120,31 +119,11 @@ class PickAruco(object):
         rospy.sleep(2.0)
         rospy.loginfo("spherical_grasp_gui: Waiting for an aruco detection")
 
-        # self.turn_wrist() # experimental function
+        # self.turn_hand() # experimental function
 
-        # # get aruco pose here: from marker
-        # aruco_pose = rospy.wait_for_message('/aruco_single/pose', PoseStamped)
-        # aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
-
-        # manually input aruco pose
-        aruco_pose = PoseStamped()
-        aruco_pose.header.frame_id = 'base_footprint'
-
-        # # original aruco pose
-        # aruco_pose.pose.position.x = 0.528450879403
-        # aruco_pose.pose.position.y = -0.0486955713869
-        # aruco_pose.pose.position.z = 0.922035729832
-        
-        # milk bottle pose - 0.54076 -0.048781 0.706404 (722288)
-        aruco_pose.pose.position.x = 0.54076
-        aruco_pose.pose.position.y = -0.048781
-        aruco_pose.pose.position.z = 0.706404 + 0.08
-        aruco_pose.pose.orientation.x = 0.5
-        aruco_pose.pose.orientation.y = 0.5
-        aruco_pose.pose.orientation.z = 0.5
-        aruco_pose.pose.orientation.w = 0.5
-
-
+        # get aruco pose here: from marker
+        aruco_pose = rospy.wait_for_message('/aruco_single/pose', PoseStamped)
+        aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
         rospy.loginfo("Got: " + str(aruco_pose))
         rospy.loginfo("spherical_grasp_gui: Transforming from frame: " +
         aruco_pose.header.frame_id + " to 'base_footprint'")
@@ -198,14 +177,8 @@ class PickAruco(object):
             
             # Move torso to its maximum height
             self.lift_torso()
-
-            rospy.sleep(3)
-
-            # self.turn_wrist()
-
-            # cup pose: 0.704044 0.048027 0.722279
-            aruco_pose.pose.position.x = 0.704044 - 0.2
-            aruco_pose.pose.position.y = 0.048027 + 0.1
+            aruco_pose.pose.position.x += 0.2
+            aruco_pose.pose.position.y += 0.2
             aruco_pose.pose.position.z += 0.2
 
 
@@ -229,10 +202,7 @@ class PickAruco(object):
             x, y, z = q_to_eular(-0.5, 0, 0, 1.2)
             rospy.loginfo("End effector eular angles: " + str([x,y,z]))
             rospy.sleep(3)
-
-            # self.open_gripper()
-            # pour liquid
-            self.turn_wrist()
+            self.open_gripper()
 
             # arm=MoveGroupCommander('arm')
             # arm.allow_replanning(True)
@@ -283,74 +253,58 @@ class PickAruco(object):
         jt.points.append(jtp)
         self.torso_cmd.publish(jt)
 
-    def turn_wrist(self):
-        wrist_state = -2.0
+    def turn_hand(self):
         rospy.loginfo("Turning Arm")
-        joint_state = rospy.wait_for_message('/joint_states', JointState)
-        j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
-        rospy.loginfo("Previous wrist state: "+str(j7))
+        jt = JointTrajectory()
+        jt.joint_names = ['arm_1_joint',
+        'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
+        'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+        jtp.time_from_start = rospy.Duration(3)
+        jt.points.append(jtp)
 
-        max_wrist_state = j7 + 2.0
-        while j7 < max_wrist_state:
-            
-            
-            jt = JointTrajectory()
-            jt.joint_names = ['arm_1_joint',
-            'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-            'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
-            jtp = JointTrajectoryPoint()
-            jtp.positions = [j1, j2, j3, j4, j5, j6, j7+0.5]
-            jtp.time_from_start = rospy.Duration(2)
-            jt.points.append(jtp)
-            self.trajectory_cmd.publish(jt)
-            rospy.sleep(0.25)
-
-            # check the wrist joint state
-            joint_state = rospy.wait_for_message('/joint_states', JointState)
-            j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
-
-
-        # # jtp = JointTrajectoryPoint()
-        # # jtp.positions = [1.5,0.0,0.0,0.0,0.0,0.0,0.0]
-        # # jtp.time_from_start = rospy.Duration(6)
-        # # jt.points.append(jtp)
-
-        # # jtp = JointTrajectoryPoint()
-        # # jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-        # # jtp.time_from_start = rospy.Duration(9)
-        # # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 1")
-
-        # rospy.sleep(0.1)
-
-        # jt = JointTrajectory()
-        # jt.joint_names = ['arm_1_joint',
-        # 'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-        # 'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
         # jtp = JointTrajectoryPoint()
-        # jtp.positions = [3,0.0,0.0,0.0,0.0,0.0,0.0]
+        # jtp.positions = [1.5,0.0,0.0,0.0,0.0,0.0,0.0]
         # jtp.time_from_start = rospy.Duration(6)
         # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 2")
 
-        # rospy.sleep(0.1)
-
-        # jt = JointTrajectory()
-        # jt.joint_names = ['arm_1_joint',
-        # 'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-        # 'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
         # jtp = JointTrajectoryPoint()
         # jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
         # jtp.time_from_start = rospy.Duration(9)
         # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 3")
+        self.trajectory_cmd.publish(jt)
+        rospy.loginfo("Done 1")
+
+        rospy.sleep(0.1)
+
+        jt = JointTrajectory()
+        jt.joint_names = ['arm_1_joint',
+        'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
+        'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [3,0.0,0.0,0.0,0.0,0.0,0.0]
+        jtp.time_from_start = rospy.Duration(6)
+        jt.points.append(jtp)
+        self.trajectory_cmd.publish(jt)
+        rospy.loginfo("Done 2")
+
+        rospy.sleep(0.1)
+
+        jt = JointTrajectory()
+        jt.joint_names = ['arm_1_joint',
+        'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
+        'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+        jtp.time_from_start = rospy.Duration(9)
+        jt.points.append(jtp)
+        self.trajectory_cmd.publish(jt)
+        rospy.loginfo("Done 3")
 
 
 
-        # # rospy.sleep(2.0)
+        # rospy.sleep(2.0)
 
 
 

@@ -24,7 +24,7 @@
 import rospy
 from spherical_grasps_server import SphericalGrasps
 from actionlib import SimpleActionClient, SimpleActionServer
-from moveit_commander import PlanningSceneInterface, MoveGroupCommander
+from moveit_commander import PlanningSceneInterface
 from moveit_msgs.msg import Grasp, PickupAction, PickupGoal, PickupResult, MoveItErrorCodes
 from moveit_msgs.msg import PlaceAction, PlaceGoal, PlaceResult, PlaceLocation
 from geometry_msgs.msg import Pose, PoseStamped, PoseArray, Vector3Stamped, Vector3, Quaternion
@@ -56,7 +56,7 @@ def createPickupGoal(group="arm_torso", target="part",
 	pug.planning_options.planning_scene_diff.robot_state.is_diff = True
 	pug.planning_options.plan_only = False
 	pug.planning_options.replan = True
-	pug.planning_options.replan_attempts = 1  # 10
+	pug.planning_options.replan_attempts = 3  # 10
 	pug.allowed_touch_objects = []
 	pug.attached_object_touch_links = ['<octomap>']
 	pug.attached_object_touch_links.extend(links_to_allow_contact)
@@ -79,7 +79,7 @@ def createPlaceGoal(place_pose,
 	placeg.planning_options.planning_scene_diff.robot_state.is_diff = True
 	placeg.planning_options.plan_only = False
 	placeg.planning_options.replan = True
-	placeg.planning_options.replan_attempts = 1
+	placeg.planning_options.replan_attempts = 3
 	placeg.allowed_touch_objects = ['<octomap>']
 	placeg.allowed_touch_objects.extend(links_to_allow_contact)
 
@@ -110,10 +110,10 @@ class PickAndPlaceServer(object):
 		self.clear_octomap_srv.wait_for_service()
 		rospy.loginfo("Connected!")
 
-		# Get the object size
-		self.object_height = rospy.get_param('~object_height')
-		self.object_width = rospy.get_param('~object_width')
-		self.object_depth = rospy.get_param('~object_depth')
+                # Get the object size
+                self.object_height = rospy.get_param('~object_height')
+                self.object_width = rospy.get_param('~object_width')
+                self.object_depth = rospy.get_param('~object_depth')
 
 		# Get the links of the end effector exclude from collisions
 		self.links_to_allow_contact = rospy.get_param('~links_to_allow_contact', None)
@@ -188,94 +188,33 @@ class PickAndPlaceServer(object):
 
 		rospy.loginfo("Object pose: %s", object_pose.pose)
 		
-				#Add object description in scene
+                #Add object description in scene
 		self.scene.add_box("part", object_pose, (self.object_depth, self.object_width, self.object_height))
 
 		rospy.loginfo("Second%s", object_pose.pose)
 		table_pose = copy.deepcopy(object_pose)
 
-		#define a virtual table below the object
-		table_height = object_pose.pose.position.z - self.object_width/2  
-		table_width  = 1.8
-		table_depth  = 0.5
-		table_pose.pose.position.z += -(2*self.object_width)/2 -table_height/2
-		table_height -= 0.008 #remove few milimeters to prevent contact between the object and the table
-
-		self.scene.add_box("table", table_pose, (table_depth, table_width, table_height))
-
-		# We need to wait for the object part to appear
-		self.wait_for_planning_scene_object()
-		self.wait_for_planning_scene_object("table")
-
-		# compute grasps
-		possible_grasps = self.sg.create_grasps_from_object_pose(object_pose)
-		
-		# self.pickup_ac # why is this here
-		
-		goal = createPickupGoal(
-			"arm_torso", "part", object_pose, possible_grasps, self.links_to_allow_contact)
-		
-		rospy.loginfo("Sending goal")
-		self.pickup_ac.send_goal(goal)
-		rospy.loginfo("Waiting for result")
-		self.pickup_ac.wait_for_result()
-		
-		result = self.pickup_ac.get_result()
-		rospy.logdebug("Using torso result: " + str(result))
-		rospy.loginfo(
-			"Pick result: " +
-		str(moveit_error_dict[result.error_code.val]))
-
-		rospy.loginfo(
-			"Result value: " +
-		str(result.error_code.val))
-
-		return result.error_code.val
-
-	def grasp_object_with_via_points(self, object_pose):
-		rospy.loginfo("Removing any previous 'part' object")
-		self.scene.remove_attached_object("arm_tool_link")
-		self.scene.remove_world_object("part")
-		self.scene.remove_world_object("table")
-		rospy.loginfo("Clearing octomap")
-		self.clear_octomap_srv.call(EmptyRequest())
-		rospy.sleep(2.0)  # Removing is fast
-		rospy.loginfo("Adding new 'part' object")
-
-		rospy.loginfo("Object pose: %s", object_pose.pose)
-		
-				#Add object description in scene
-		self.scene.add_box("part", object_pose, (self.object_depth, self.object_width, self.object_height))
-
-		rospy.loginfo("Second%s", object_pose.pose)
-		table_pose = copy.deepcopy(object_pose)
-
-		#define a virtual table below the object
-		table_height = object_pose.pose.position.z - self.object_width/2  
-		table_width  = 1.8
-		table_depth  = 0.5
-		table_pose.pose.position.z += -(2*self.object_width)/2 -table_height/2
-		table_height -= 0.008 #remove few milimeters to prevent contact between the object and the table
+                #define a virtual table below the object
+                table_height = object_pose.pose.position.z - self.object_width/2  
+                table_width  = 1.8
+                table_depth  = 0.5
+                table_pose.pose.position.z += -(2*self.object_width)/2 -table_height/2
+                table_height -= 0.008 #remove few milimeters to prevent contact between the object and the table
 
 		self.scene.add_box("table", table_pose, (table_depth, table_width, table_height))
 
 		# # We need to wait for the object part to appear
 		self.wait_for_planning_scene_object()
 		self.wait_for_planning_scene_object("table")
-		
-		## from here we have goal of the pickup point
-		##
-		## send a result to show if successful or not
 
-		# compute grasps
+        # compute grasps
 		possible_grasps = self.sg.create_grasps_from_object_pose(object_pose)
 		self.pickup_ac
 		goal = createPickupGoal(
 			"arm_torso", "part", object_pose, possible_grasps, self.links_to_allow_contact)
-
-		rospy.loginfo("Sending goal")
+		
+                rospy.loginfo("Sending goal")
 		self.pickup_ac.send_goal(goal)
-
 		rospy.loginfo("Waiting for result")
 		self.pickup_ac.wait_for_result()
 		result = self.pickup_ac.get_result()
@@ -317,7 +256,7 @@ class PickAndPlaceServer(object):
 			result = self.place_ac.get_result()
 			rospy.logerr(str(moveit_error_dict[result.error_code.val]))
 		
-				# print result
+                # print result
 		rospy.loginfo(
 			"Result: " +
 			str(moveit_error_dict[result.error_code.val]))

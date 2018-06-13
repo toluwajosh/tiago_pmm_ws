@@ -35,6 +35,22 @@ play_motion:
         usage: demo
         description: 'unfold_arm'
 
+    all_zero:
+      joints: [torso_lift_joint, arm_1_joint,
+      arm_2_joint, arm_3_joint, arm_4_joint, arm_5_joint,
+      arm_6_joint, arm_7_joint]
+      points:
+      - positions: [0.30, 0.21, 0.35, -0.2, 0.8, -1.57, 1.0, 0.0]
+        time_from_start: 3.0
+      # - positions: [0.30, 0.21, -0.2, -2.2, 1.15, -1.57, 0.2, 0.0]
+      #   time_from_start: 6.0
+      - positions: [0.30, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        time_from_start: 6.0
+      meta:
+        name: all_zero
+        usage: demo
+        description: 'all zero'
+
     reach_floor:
       joints: [torso_lift_joint, arm_1_joint,
       arm_2_joint, arm_3_joint, arm_4_joint, arm_5_joint,

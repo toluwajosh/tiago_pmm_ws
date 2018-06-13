@@ -6,23 +6,22 @@
   <!--  - if sim=false, a robot_ip argument is required -->
   <arg name="robot"      default="steel"/>
   <arg name="public_sim" default="true"/>
-  <arg name="world" default="hackathon_world_no_chair"/>
+  <arg name="world" default="hackathon_worldv7"/>
   <arg name="show_rviz" default="false"/>
  
   <!-- load the robot_description parameter before launching ROS-I nodes -->
-   <include file="$(find tiago_gazebo)/launch/tiago_gazebo.launch" >
+   <include file="start_up.launch" >
     <arg name="public_sim" value="$(arg public_sim)" />
     <arg name="robot" value="$(arg robot)" />
     <arg name="world" value="$(arg world)" />
   </include>
   
-  <include file="$(find tiago_pcl_tutorial)/launch/segment_table.launch" >
+<!--   <include file="$(find tiago_pcl_tutorial)/launch/segment_table.launch" >
     <arg name="show_rviz" value="$(arg show_rviz)" />
-  </include>
+  </include> -->
 
- <include file="$(find tiago_pcl_tutorial)/launch/cylinder_detector.launch" /> 
- <include file="$(find tiago_pick_demo)/launch/pick_demo.launch" /> 
-    
-
+ <!-- <include file="$(find tiago_pcl_tutorial)/launch/cylinder_detector.launch" />  -->
+ 
+ <!-- <include file="$(find tiago_pick_demo)/launch/pick_demo.launch" />  -->
 
 </launch>
