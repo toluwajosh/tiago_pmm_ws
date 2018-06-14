@@ -102,6 +102,9 @@ class PickAruco(object):
         self.gripper_cmd = rospy.Publisher(
             '/gripper_controller/command', JointTrajectory, queue_size=1)
 
+        self.hey5_cmd = rospy.Publisher(
+            '/hand_controller/command', JointTrajectory, queue_size=1)
+
         rospy.loginfo("Waiting for '/play_motion' AS...")
         self.play_m_as = SimpleActionClient('/play_motion', PlayMotionAction)
         if not self.play_m_as.wait_for_server(rospy.Duration(20)):
@@ -115,7 +118,10 @@ class PickAruco(object):
         return s[1:] if s.startswith("/") else s
         
     def pick_aruco(self, string_operation):
+        # self.open_hey5()
         self.prepare_robot()
+
+        self.close_hey5()
 
         rospy.sleep(3.0)
 
@@ -136,14 +142,15 @@ class PickAruco(object):
         # aruco_pose.pose.position.y = -0.0486955713869
         # aruco_pose.pose.position.z = 0.922035729832
         
-        # milk bottle pose - 0.54076 -0.048781 0.706404 (722288)
-        aruco_pose.pose.position.x = 0.54076
-        aruco_pose.pose.position.y = -0.048781 #+ 0.05
+        aruco_pose.pose.position.x = 0.544079
+        aruco_pose.pose.position.y = 0.050645 + 0.005
         aruco_pose.pose.position.z = 0.706404 + 0.08
         aruco_pose.pose.orientation.x = 0.5
         aruco_pose.pose.orientation.y = 0.5
         aruco_pose.pose.orientation.z = 0.5
         aruco_pose.pose.orientation.w = 0.5
+
+        
 
 
         rospy.loginfo("Got: " + str(aruco_pose))
@@ -171,6 +178,7 @@ class PickAruco(object):
                 ps.header.stamp = self.tfBuffer.get_latest_common_time("base_footprint", aruco_pose.header.frame_id)
             pick_g = PickUpPoseGoal()
 
+
         if string_operation == "pick":
 
             rospy.loginfo("Setting cube pose based on ArUco detection")
@@ -192,6 +200,9 @@ class PickAruco(object):
 
             result = self.pick_as.get_result()
 
+            # save the original pose
+            original_pose = deepcopy(aruco_pose)
+
             if str(moveit_error_dict[result.error_code]) != "SUCCESS":
                 rospy.logerr("Failed to pick, not trying further")
                 return
@@ -202,30 +213,47 @@ class PickAruco(object):
 
             rospy.sleep(3.0)
 
-            # self.turn_wrist()
-
-            # cup pose: 0.704044 0.048027 0.722279
-            aruco_pose.pose.position.x = 0.704044 - 0.2
-            aruco_pose.pose.position.y = 0.048027 
-            aruco_pose.pose.position.z += 0.2
+            aruco_pose.pose.position.x = 0.733477 - 0.2
+            aruco_pose.pose.position.y = 0.057126 + 0.07
+            aruco_pose.pose.position.z += 0.2 # 0.2 is the allowance for pouring
 
 
-            drop_pose = deepcopy(aruco_pose)
-            # drop_pose.pose.position.x += 0.2
-            # drop_pose.pose.position.y += 0.3
-            # drop_pose.pose.position.z += 0.2
-            # optimize_goal_pose(drop_pose)
+            pour_pose = deepcopy(aruco_pose)
+            # pour_pose.pose.position.x += 0.2
+            # pour_pose.pose.position.y += 0.3
+            # pour_pose.pose.position.z += 0.2
+            # optimize_goal_pose(pour_pose)
             """
             The following are good good_candidates for pose selection (in eular angles): 
             [[0, 0, 0], [0, 0, 270], [0, 180, 0], [0, 180, 180] - no, [0, 180, 270], [0, 270, 0], [0, 270, 180], [0, 270, 270]]
             """
             x, y, z, w = eular_to_q(0,270,180)
             # x, y, z, w = eular_to_q(0,270,270)
-            drop_pose.pose.orientation.x = -0.5
-            drop_pose.pose.orientation.y = 0
-            drop_pose.pose.orientation.z = 0
-            drop_pose.pose.orientation.w = 1.2
-            cartesian_move_to(drop_pose, True)
+            pour_pose.pose.orientation.x = -0.5
+            pour_pose.pose.orientation.y = 0
+            pour_pose.pose.orientation.z = 0
+            pour_pose.pose.orientation.w = 1.2
+
+            success = False
+            while success==False:
+                result = cartesian_move_to(pour_pose, True)
+                rospy.loginfo("success of trajectory: "+str(result))
+
+                # define a goal tolerance for replanning and manipulation
+                x_arm, y_arm, z_arm = arm_pose()
+                x_aim = pour_pose.pose.position.x
+                y_aim = pour_pose.pose.position.y
+                z_aim = pour_pose.pose.position.z
+
+                goal_deviation = eular_dist(x_arm, y_arm, z_arm, x_aim, y_aim, z_aim)
+
+                rospy.loginfo("Deviation from target pose: "+str(goal_deviation))
+
+                pour_pose.pose.position.x -= 0.01
+                pour_pose.pose.position.y -= 0.01
+
+                if result > 0.9 and goal_deviation < 0.01:
+                    success = True
 
             x, y, z = q_to_eular(-0.5, 0, 0, 1.2)
             rospy.loginfo("End effector eular angles: " + str([x,y,z]))
@@ -234,6 +262,67 @@ class PickAruco(object):
             # self.open_gripper()
             # pour liquid
             self.turn_wrist()
+
+            rospy.sleep(5.0)
+
+            # turn back to original pose
+            self.turn_wrist(pour=False)
+
+            rospy.sleep(3.0)
+
+            # # return bottle to original pose
+            # x, y, z, w = eular_to_q(0,270,180)
+            # # x, y, z, w = eular_to_q(0,270,270)
+            # original_pose.pose.position.z = pour_pose.pose.position.z
+            # original_pose.pose.orientation.x = -0.5
+            # original_pose.pose.orientation.y = 0
+            # original_pose.pose.orientation.z = 0
+            # original_pose.pose.orientation.w = 1.2
+
+            # success = False
+            # while success==False:
+            #     result = cartesian_move_to(original_pose, True)
+            #     rospy.loginfo("success of trajectory: "+str(result))
+
+            #     # define a goal tolerance for replanning and manipulation
+            #     x_arm, y_arm, z_arm = arm_pose()
+            #     x_aim = original_pose.pose.position.x
+            #     y_aim = original_pose.pose.position.y
+            #     z_aim = original_pose.pose.position.z
+
+            #     goal_deviation = eular_dist(x_arm, y_arm, z_arm, x_aim, y_aim, z_aim)
+
+            #     rospy.loginfo("Deviation from target pose: "+str(goal_deviation))
+
+            #     original_pose.pose.position.x -= 0.01
+            #     original_pose.pose.position.y -= 0.01
+
+            #     if result > 0.9 and goal_deviation < 0.1:
+            #         success = True
+
+            # rospy.loginfo("Gonna place near where it was")
+
+            # ps = PoseStamped()
+            # ps.pose.position = original_pose.pose.position
+            # ps.header.stamp = self.tfBuffer.get_latest_common_time("base_footprint", original_pose.header.frame_id)
+            # ps.header.frame_id = original_pose.header.frame_id
+            # transform_ok = False
+            # while not transform_ok and not rospy.is_shutdown():
+            #     try:
+            #         transform = self.tfBuffer.lookup_transform("base_footprint", 
+            #                                ps.header.frame_id,
+            #                                rospy.Time(0))
+            #         aruco_ps = do_transform_pose(ps, transform)
+            #         transform_ok = True
+            #     except tf2_ros.ExtrapolationException as e:
+            #         rospy.logwarn(
+            #             "Exception on transforming point... trying again \n(" +
+            #             str(e) + ")")
+            #         rospy.sleep(0.01)
+            #         ps.header.stamp = self.tfBuffer.get_latest_common_time("base_footprint", original_pose.header.frame_id)
+            #     pick_g = PickUpPoseGoal()
+
+
 
             # arm=MoveGroupCommander('arm')
             # arm.allow_replanning(True)
@@ -267,12 +356,12 @@ class PickAruco(object):
             # self.play_m_as.send_goal_and_wait(pmg)
             # rospy.loginfo("Raise object done.")
 
-            # # Place the object back to its position
-            # rospy.loginfo("Gonna place near where it was")
-            # pick_g.object_pose.pose.position.z += 0.05
-            # pick_g.object_pose.pose.position.y += 0.2
-            # self.place_as.send_goal_and_wait(pick_g)
-            # rospy.loginfo("Done!")
+            # Place the object back to its position
+            rospy.loginfo("Gonna place near where it was ...........")
+            pick_g.object_pose.pose.position.z += 0.05
+            pick_g.object_pose.pose.position.y += 0.2
+            self.place_as.send_goal_and_wait(pick_g)
+            rospy.loginfo("Done!")
 
     def lift_torso(self):
         rospy.loginfo("Moving torso up")
@@ -284,78 +373,64 @@ class PickAruco(object):
         jt.points.append(jtp)
         self.torso_cmd.publish(jt)
 
-    def turn_wrist(self):
+    def turn_wrist(self, pour=True):
         wrist_state = -2.0
-        rospy.loginfo("Turning Arm")
+        
         joint_state = rospy.wait_for_message('/joint_states', JointState)
         j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
-        rospy.loginfo("Previous wrist state: "+str(j7))
+        rospy.loginfo("Starting wrist state: "+str(j7))
 
-        max_wrist_state = j7 + 2.0
-        while j7 < max_wrist_state:
-            
-            
-            jt = JointTrajectory()
-            jt.joint_names = ['arm_1_joint',
-            'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-            'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
-            jtp = JointTrajectoryPoint()
-            jtp.positions = [j1, j2, j3, j4, j5, j6, j7+0.5]
-            jtp.time_from_start = rospy.Duration(2)
-            jt.points.append(jtp)
-            self.trajectory_cmd.publish(jt)
-            rospy.sleep(0.25)
+        max_try = 0
 
-            # check the wrist joint state
-            joint_state = rospy.wait_for_message('/joint_states', JointState)
-            j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
+        turn_target = 1.5
 
+        if pour:
+            rospy.loginfo("Turning Arm Forward")
+            max_wrist_state = j7 + turn_target
+            while j7 < max_wrist_state and max_try < 20:
+                
+                
+                jt = JointTrajectory()
+                jt.joint_names = ['arm_1_joint',
+                'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
+                'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+                jtp = JointTrajectoryPoint()
+                jtp.positions = [j1, j2, j3, j4, j5, j6, j7+0.5]
+                jtp.time_from_start = rospy.Duration(2)
+                jt.points.append(jtp)
+                self.trajectory_cmd.publish(jt)
+                rospy.sleep(0.25)
 
-        # # jtp = JointTrajectoryPoint()
-        # # jtp.positions = [1.5,0.0,0.0,0.0,0.0,0.0,0.0]
-        # # jtp.time_from_start = rospy.Duration(6)
-        # # jt.points.append(jtp)
+                # check the wrist joint state
+                joint_state = rospy.wait_for_message('/joint_states', JointState)
+                j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
+                rospy.loginfo("Current wrist state: "+str(j7))
 
-        # # jtp = JointTrajectoryPoint()
-        # # jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-        # # jtp.time_from_start = rospy.Duration(9)
-        # # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 1")
+                max_try+=1
+            rospy.loginfo("Done.")
+        else:
+            rospy.loginfo("Turning Arm Backward")
+            max_wrist_state = j7 - turn_target
+            while j7 > max_wrist_state and max_try < 20:
+                
+                
+                jt = JointTrajectory()
+                jt.joint_names = ['arm_1_joint',
+                'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
+                'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
+                jtp = JointTrajectoryPoint()
+                jtp.positions = [j1, j2, j3, j4, j5, j6, j7-0.5]
+                jtp.time_from_start = rospy.Duration(2)
+                jt.points.append(jtp)
+                self.trajectory_cmd.publish(jt)
+                rospy.sleep(0.25)
 
-        # rospy.sleep(0.1)
-
-        # jt = JointTrajectory()
-        # jt.joint_names = ['arm_1_joint',
-        # 'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-        # 'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
-        # jtp = JointTrajectoryPoint()
-        # jtp.positions = [3,0.0,0.0,0.0,0.0,0.0,0.0]
-        # jtp.time_from_start = rospy.Duration(6)
-        # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 2")
-
-        # rospy.sleep(0.1)
-
-        # jt = JointTrajectory()
-        # jt.joint_names = ['arm_1_joint',
-        # 'arm_2_joint', 'arm_3_joint', 'arm_4_joint', 
-        # 'arm_5_joint', 'arm_6_joint', 'arm_7_joint']
-        # jtp = JointTrajectoryPoint()
-        # jtp.positions = [0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-        # jtp.time_from_start = rospy.Duration(9)
-        # jt.points.append(jtp)
-        # self.trajectory_cmd.publish(jt)
-        # rospy.loginfo("Done 3")
-
-
-
-        # # rospy.sleep(2.0)
-
-
-
-        rospy.loginfo("Done.")
+                # check the wrist joint state
+                joint_state = rospy.wait_for_message('/joint_states', JointState)
+                j1, j2, j3, j4, j5, j6, j7 = joint_state.position[:7]
+                rospy.loginfo("Current wrist state: "+str(j7))
+                max_try+=1
+            rospy.loginfo("Done.")
 
     def lower_head(self):
         rospy.loginfo("Moving head down")
@@ -389,6 +464,39 @@ class PickAruco(object):
         jtp.time_from_start = rospy.Duration(0.5)
         jt.points.append(jtp)
         self.gripper_cmd.publish(jt)
+        rospy.loginfo("Done.")
+
+    def open_hey5(self):
+        rospy.loginfo("Opening Gripper")
+        jt = JointTrajectory()
+        jt.joint_names = ['hand_thumb_joint', 'hand_index_joint', 'hand_mrl_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [-1.0, -1.0, -1.0]
+        jtp.time_from_start = rospy.Duration(0.1)
+        jt.points.append(jtp)
+
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [0.0, 0.0, 0.0]
+        jtp.time_from_start = rospy.Duration(2.5)
+        jt.points.append(jtp)
+        self.hey5_cmd.publish(jt)
+        rospy.loginfo("Done.")
+
+
+    def close_hey5(self):
+        rospy.loginfo("Closing Gripper")
+        jt = JointTrajectory()
+        jt.joint_names = ['hand_thumb_joint', 'hand_index_joint', 'hand_mrl_joint']
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [2.37, 0.0, 0.0]
+        jtp.time_from_start = rospy.Duration(0.1)
+        jt.points.append(jtp)
+
+        jtp = JointTrajectoryPoint()
+        jtp.positions = [6.2, 6.8, 9.2]
+        jtp.time_from_start = rospy.Duration(2.5)
+        jt.points.append(jtp)
+        self.hey5_cmd.publish(jt)
         rospy.loginfo("Done.")
 
 
@@ -445,8 +553,10 @@ def cartesian_move_to(pose_, execute=False):
     fraction=0.0
     maxtries=100
     attempts=0
+    executed = 0
+    max_execute = 10
     while fraction<1.0 and attempts<maxtries:
-        (plan,fraction)=arm.compute_cartesian_path(waypoints,0.01,0.0,True)
+        (plan,fraction)=arm.compute_cartesian_path(waypoints,0.02,0.0,True)
         attempts+=1
         if attempts %20==0:
             if (attempts<100):
@@ -462,7 +572,8 @@ def cartesian_move_to(pose_, execute=False):
             if execute:
                 arm.execute(plan)
                 rospy.loginfo("path execution complete. ")
-                rospy.sleep(2)              
+                rospy.sleep(2)
+                break # to break infinite loop           
         if  (attempts %100==0 and fraction<0.9):
             rospy.loginfo("path planning failed with only  " + str(fraction*100)+ "% success after  "+ str(maxtries)+" attempts")
     return fraction
@@ -503,6 +614,22 @@ def optimize_goal_pose(pose_):
     else:
         rospy.loginfo("Could not optimize cartesian manipulation planning with highest score = "+str(score))
     # return chosen
+
+def arm_pose():
+    arm=MoveGroupCommander('arm')
+    arm.allow_replanning(True)
+    end_effector_link=arm.get_end_effector_link()
+    arm.set_goal_position_tolerance(0.03)
+    arm.set_goal_orientation_tolerance(0.025)
+    arm.allow_replanning(True)
+
+    reference_frame='base_footprint'
+    arm.set_pose_reference_frame(reference_frame)
+    arm.set_planning_time(5)
+
+    curr_pose=arm.get_current_pose(end_effector_link).pose.position
+
+    return curr_pose.x, curr_pose.y, curr_pose.z
 
 if __name__ == '__main__':
     rospy.init_node('pick_aruco_demo')

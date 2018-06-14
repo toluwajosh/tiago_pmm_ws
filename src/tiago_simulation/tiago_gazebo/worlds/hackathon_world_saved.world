@@ -182,6 +182,9 @@
           <wrench>-0.355042 -0.169432 0.190917 0 -0 0</wrench>
         </link>
       </model>
+
+      <!-- particles -->
+      
       <model name='sphere0'>
         <pose>-0.000751 -0.006096 -0.063583 0.008961 -0.001297 -0.00673</pose>
         <link name='link'>

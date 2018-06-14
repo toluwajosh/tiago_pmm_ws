@@ -33,6 +33,13 @@ def q_to_eular(w, x, y, z):
 	
 	return X, Y, Z
 
+def eular_dist(x_1, y_1, z_1, x_2, y_2, z_2):
+	dx = (x_1 - x_2)**2
+	dy = (y_1 - y_2)**2
+	dz = (z_1 - z_2)**2
+	r = math.sqrt(dx + dy + dz)
+	return r
+
 
 if __name__ == '__main__':
 	print("eular to quaternion: ",eular_to_q(180, 0, 0))
