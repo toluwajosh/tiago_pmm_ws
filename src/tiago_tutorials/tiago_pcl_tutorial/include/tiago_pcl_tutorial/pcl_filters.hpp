@@ -427,7 +427,7 @@ namespace pal {
 				extract.setNegative(false);
 				extract.filter(*Cloud_1);
 				Cloud.push_back(Cloud_1);	
-				if((int)Cloud_1->points.size()<280)
+				if((int)Cloud_1->points.size()<310)
 				{
 					cylinderCloud_1=Cloud.at(i);
 					cylinderCoefficients_1=cylinderCoefficients;

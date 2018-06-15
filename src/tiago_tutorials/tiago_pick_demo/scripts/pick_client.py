@@ -20,8 +20,8 @@
 #   * Job van Dieten
 #   * Jordi Pages
 
-import rospy
 import time
+import rospy
 from tiago_pick_demo.msg import PickUpPoseAction, PickUpPoseGoal
 from geometry_msgs.msg import PoseStamped, Pose
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
@@ -32,6 +32,7 @@ from copy import deepcopy
 from math_util import *
 
 # added
+import random
 from moveit_commander import MoveGroupCommander#, PlanningSceneInterface
 from sensor_msgs.msg import JointState
 
@@ -118,45 +119,38 @@ class PickAruco(object):
         return s[1:] if s.startswith("/") else s
         
     def pick_aruco(self, string_operation):
-        # self.open_hey5()
         self.prepare_robot()
 
-        self.close_hey5()
-
-        rospy.sleep(3.0)
+        rospy.sleep(2.0)
 
         rospy.loginfo("spherical_grasp_gui: Waiting for an aruco detection")
 
-        # self.turn_wrist() # experimental function
+        # get aruco pose here: from marker
+        aruco_pose = rospy.wait_for_message('/cylinder_pose', PoseStamped)
+        aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
 
-        # # get aruco pose here: from marker
-        # aruco_pose = rospy.wait_for_message('/aruco_single/pose', PoseStamped)
-        # aruco_pose.header.frame_id = self.strip_leading_slash(aruco_pose.header.frame_id)
+        # # manually input aruco pose
+        # aruco_pose = PoseStamped()
+        # aruco_pose.header.frame_id = 'base_footprint'
 
-        # manually input aruco pose
-        aruco_pose = PoseStamped()
-        aruco_pose.header.frame_id = 'base_footprint'
+        # # # original aruco pose
+        # # aruco_pose.pose.position.x = 0.528450879403
+        # # aruco_pose.pose.position.y = -0.0486955713869
+        # # aruco_pose.pose.position.z = 0.922035729832 
 
-        # # original aruco pose
-        # aruco_pose.pose.position.x = 0.528450879403
-        # aruco_pose.pose.position.y = -0.0486955713869
-        # aruco_pose.pose.position.z = 0.922035729832
+        # # 0.545863 0.049354 0.724881
         
-        aruco_pose.pose.position.x = 0.544079
-        aruco_pose.pose.position.y = 0.050645 + 0.005
-        aruco_pose.pose.position.z = 0.706404 + 0.08
-        aruco_pose.pose.orientation.x = 0.5
-        aruco_pose.pose.orientation.y = 0.5
-        aruco_pose.pose.orientation.z = 0.5
-        aruco_pose.pose.orientation.w = 0.5
-
-        
-
+        # aruco_pose.pose.position.x = 0.545863
+        # aruco_pose.pose.position.y = 0.049354
+        # aruco_pose.pose.position.z = 0.724881 + 0.05
+        # aruco_pose.pose.orientation.x = 0.5
+        # aruco_pose.pose.orientation.y = 0.5
+        # aruco_pose.pose.orientation.z = 0.5
+        # aruco_pose.pose.orientation.w = 0.5
 
         rospy.loginfo("Got: " + str(aruco_pose))
         rospy.loginfo("spherical_grasp_gui: Transforming from frame: " +
         aruco_pose.header.frame_id + " to 'base_footprint'")
-
 
         ps = PoseStamped()
         ps.pose.position = aruco_pose.pose.position
@@ -194,41 +188,42 @@ class PickAruco(object):
             self.pick_as.send_goal_and_wait(pick_g)
             rospy.loginfo("Done!")
 
-            # some_pose=arm.get_current_pose(end_effector_link).pose
-
-            # rospy.loginfo("current hand pose "+str(some_pose))
-
             result = self.pick_as.get_result()
 
-            # save the original pose
+            # save the original pose ##########
             original_pose = deepcopy(aruco_pose)
 
             if str(moveit_error_dict[result.error_code]) != "SUCCESS":
                 rospy.logerr("Failed to pick, not trying further")
                 return
-
             
+            rospy.sleep(2.0)
+
             # Move torso to its maximum height
             self.lift_torso()
 
-            rospy.sleep(3.0)
+            rospy.sleep(2.0)
 
-            aruco_pose.pose.position.x = 0.733477 - 0.2
-            aruco_pose.pose.position.y = 0.057126 + 0.07
-            aruco_pose.pose.position.z += 0.2 # 0.2 is the allowance for pouring
+            # aruco_pose.pose.position.x = 0.733477 - 0.2
+            # aruco_pose.pose.position.y = 0.057126 + 0.07
+            # aruco_pose.pose.position.z += 0.2 # 0.2 is the allowance for pouring
 
+            
 
             pour_pose = deepcopy(aruco_pose)
-            # pour_pose.pose.position.x += 0.2
-            # pour_pose.pose.position.y += 0.3
-            # pour_pose.pose.position.z += 0.2
-            # optimize_goal_pose(pour_pose)
+            pour_pose.pose.position.x = 0.733477 - 0.2
+            pour_pose.pose.position.y = 0.057126 + 0.07
+            pour_pose.pose.position.z += 0.2
+
             """
             The following are good good_candidates for pose selection (in eular angles): 
             [[0, 0, 0], [0, 0, 270], [0, 180, 0], [0, 180, 180] - no, [0, 180, 270], [0, 270, 0], [0, 270, 180], [0, 270, 270]]
             """
-            x, y, z, w = eular_to_q(0,270,180)
+
+            # some more successful grasp candidates
+            # x, y, z, w = eular_to_q(0,270,180)
             # x, y, z, w = eular_to_q(0,270,270)
+
             pour_pose.pose.orientation.x = -0.5
             pour_pose.pose.orientation.y = 0
             pour_pose.pose.orientation.z = 0
@@ -236,8 +231,17 @@ class PickAruco(object):
 
             success = False
             while success==False:
+                rospy.sleep(2.0)
+                # x_e, y_e, z_e = random.choice([(0,270,180), (0,270,270)])
+                # x, y, z, w = eular_to_q(x_e, y_e, z_e)
+
+                # pour_pose.pose.orientation.x = x
+                # pour_pose.pose.orientation.y = y
+                # pour_pose.pose.orientation.z = z
+                # pour_pose.pose.orientation.w = w
+
                 result = cartesian_move_to(pour_pose, True)
-                rospy.loginfo("success of trajectory: "+str(result))
+                rospy.loginfo("Success of trajectory: "+str(result))
 
                 # define a goal tolerance for replanning and manipulation
                 x_arm, y_arm, z_arm = arm_pose()
@@ -249,24 +253,57 @@ class PickAruco(object):
 
                 rospy.loginfo("Deviation from target pose: "+str(goal_deviation))
 
-                pour_pose.pose.position.x -= 0.01
-                pour_pose.pose.position.y -= 0.01
+                # pour_pose.pose.position.x -= 0.0001
+                # pour_pose.pose.position.y -= 0.0001
 
-                if result > 0.9 and goal_deviation < 0.01:
+                if result > 0.9 and goal_deviation < 0.05:
                     success = True
 
-            x, y, z = q_to_eular(-0.5, 0, 0, 1.2)
-            rospy.loginfo("End effector eular angles: " + str([x,y,z]))
-            rospy.sleep(3)
+            # x, y, z = q_to_eular(-0.5, 0, 0, 1.2)
+            # rospy.loginfo("End effector eular angles: " + str([x,y,z]))
+            rospy.sleep(3.0)
 
-            # self.open_gripper()
             # pour liquid
             self.turn_wrist()
 
             rospy.sleep(5.0)
 
-            # turn back to original pose
+            # turn wrist back to original pose
             self.turn_wrist(pour=False)
+
+            rospy.sleep(3.0)
+
+            pour_pose.pose.position.x += 0.2
+            pour_pose.pose.position.y += 0.2
+
+            success = False
+            while success==False:
+                # x_e, y_e, z_e = random.choice([(0,270,180), (0,270,270)])
+                # x, y, z, w = eular_to_q(x_e, y_e, z_e)
+
+                # pour_pose.pose.orientation.x = x
+                # pour_pose.pose.orientation.y = y
+                # pour_pose.pose.orientation.z = z
+                # pour_pose.pose.orientation.w = w
+
+                result = cartesian_move_to(pour_pose, True)
+                rospy.loginfo("Success of trajectory: "+str(result))
+
+                # define a goal tolerance for replanning and manipulation
+                x_arm, y_arm, z_arm = arm_pose()
+                x_aim = pour_pose.pose.position.x
+                y_aim = pour_pose.pose.position.y
+                z_aim = pour_pose.pose.position.z
+
+                goal_deviation = eular_dist(x_arm, y_arm, z_arm, x_aim, y_aim, z_aim)
+
+                rospy.loginfo("Deviation from target pose: "+str(goal_deviation))
+
+                pour_pose.pose.position.x -= 0.0001
+                pour_pose.pose.position.y -= 0.0001
+
+                if result > 0.9 and goal_deviation < 0.05:
+                    success = True
 
             rospy.sleep(3.0)
 
@@ -358,6 +395,7 @@ class PickAruco(object):
 
             # Place the object back to its position
             rospy.loginfo("Gonna place near where it was ...........")
+            # pick_g.object_pose.pose.position.z += 0.05
             pick_g.object_pose.pose.position.z += 0.05
             pick_g.object_pose.pose.position.y += 0.2
             self.place_as.send_goal_and_wait(pick_g)
@@ -411,6 +449,8 @@ class PickAruco(object):
         else:
             rospy.loginfo("Turning Arm Backward")
             max_wrist_state = j7 - turn_target
+            # 2.09462737056
+            # while j7 > max_wrist_state and max_try < 20:
             while j7 > max_wrist_state and max_try < 20:
                 
                 
@@ -556,7 +596,7 @@ def cartesian_move_to(pose_, execute=False):
     executed = 0
     max_execute = 10
     while fraction<1.0 and attempts<maxtries:
-        (plan,fraction)=arm.compute_cartesian_path(waypoints,0.02,0.0,True)
+        (plan,fraction)=arm.compute_cartesian_path(waypoints,0.01,0.0,True)
         attempts+=1
         if attempts %20==0:
             if (attempts<100):
@@ -566,8 +606,8 @@ def cartesian_move_to(pose_, execute=False):
 
         if fraction>0.89:
             rospy.loginfo("path compute successfully. Arm is moving.")
-            print(plan.joint_trajectory.points[len(plan.joint_trajectory.points)-1].positions)
-            print(plan)
+            # print(plan.joint_trajectory.points[len(plan.joint_trajectory.points)-1].positions)
+            # print(plan)
             #for item in plan.joint_trajectory.points[len(plan.joint_trajectory.points)-1]
             if execute:
                 arm.execute(plan)

@@ -255,12 +255,19 @@ void CylinderDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& clo
 {  
   if ( (cloud->width * cloud->height) == 0)
     return;
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  int x1=-1.8,x2=1.8,y1=-1.8,y2=1.8,z1=0,z2=10;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCloud(new pcl::PointCloud<pcl::PointXYZRGB>), pclCloud_1(new pcl::PointCloud<pcl::PointXYZRGB>);
   //pcl::PCDWriter writer_1,writer_2;
-  pcl::fromROSMsg(*cloud, *pclCloud);
+  pcl::fromROSMsg(*cloud, *pclCloud_1);
   //pcl::io::savePCDFileASCII("~/test_1.pcd",*pclCloud);
   //writer_1.write<pcl::PointXYZRGB>("~/test_1.pcd",*pclCloud,false);
+  for(int i=0;i<(pclCloud_1->points.size());i++)
+    {
+			if ((pclCloud_1->points[i].x>x1)&&(pclCloud_1->points[i].x<x2))
+				if((pclCloud_1->points[i].y>y1)&&(pclCloud_1->points[i].y<y2))
+				    if((pclCloud_1->points[i].z>z1)&&(pclCloud_1->points[i].z<z2))
+							pclCloud->points.push_back(pclCloud_1->points[i]);
+	}
   int n_cloud_1,n_cloud_1_f,n_cloud_2,n_cloud_2_f;
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCylinderCloud_1(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCylinderCloud_2(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -487,3 +494,4 @@ int main(int argc, char**argv)
 
   return 0;
 }
+
