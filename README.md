@@ -4,6 +4,7 @@
 Assuming you already have a working TIAGo installation:
 *After cloning this repo, do the following*
 * Run
+
 `rosinstall src /opt/ros/indigo tiago_public.rosinstall`
 
 ```python
@@ -32,4 +33,36 @@ For the instructions to install TIAGo with ROS from scratch, see the following p
 Please share any other issues encountered.
 
 #### To contribute;
-Please create your own branch and work on it, only send merge requests to the devel branch. All accepted updates will be merged to the master branch.
+Please create your own branch and work on it, only send merge requests to the devel branch. 
+All accepted updates will be merged to the master branch.
+
+
+#### Tasks Division:
+|Main Task |Subdivision |Remark |Person |
+|:-----|:-----|:-----|:-----|
+|**Perception** |	|	|	|
+|				|Object Localization	|	|Su, Peng	|
+|				|Object Pose Estimation	|	|Su, Peng	|
+|				|Liquid Level Estimation	|	|Bian	|
+|**Trajectory**|	|	|
+|				|Planning	|	|Joshua	|
+|				|Generation	|	|Joshua	|
+|				|Gripper Control	|	|Kingkan	|
+|**Simulation and System Integration** |	|	|
+|				|Liquid	|	|Joe	|
+|				|Object Interaction	|	|	|
+|				|System Integration	|	|Chiba	|
+
+
+#### Essential Tutorials
+* [Planning in cartesian space](http://wiki.ros.org/Robots/TIAGo/Tutorials/MoveIt/Planning_cartesian_space)
+* [Pick and Place demo](http://wiki.ros.org/Robots/TIAGo/Tutorials/MoveIt/Pick_place)
+* [Play predefined upper body motions](http://wiki.ros.org/Robots/TIAGo/Tutorials/motions/play_motion)
+* [All the tutorials](http://wiki.ros.org/Robots/TIAGo/Tutorials)
+* [Importing external 3D model into gazebo simulation](https://www.youtube.com/watch?v=aP4sDyrRzpU)
+
+
+command to find the play_motions
+```
+rosparam list | grep  "play_motion/motions" | grep "meta/name" | cut -d '/' -f 4
+```
